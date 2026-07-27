@@ -18,7 +18,9 @@ LAYOUT = {
 
 def _apply_layout(fig: go.Figure, height: int = 420) -> go.Figure:
     """Apply a consistent visual style to figures."""
-    fig.update_layout(**LAYOUT, height=height)
+    layout_config = dict(LAYOUT)
+    layout_config["height"] = height
+    fig.update_layout(**layout_config)
     fig.update_yaxes(rangemode="tozero")
     return fig
 
@@ -159,16 +161,20 @@ def team_results_stacked_chart(yearly_df: pd.DataFrame) -> go.Figure:
         id_vars="year",
         value_vars=["wins", "draws", "losses"],
         var_name="result_type",
-        value_name="matches",
+        value_name="result_count",
     )
     fig = px.bar(
         long_df,
         x="year",
-        y="matches",
+        y="result_count",
         color="result_type",
         barmode="stack",
         title="Team Results by Year",
-        labels={"year": "Year", "matches": "Matches", "result_type": "Result type"},
+        labels={
+            "year": "Year",
+            "result_count": "Matches",
+            "result_type": "Result type",
+        },
     )
     return _apply_layout(fig)
 
