@@ -131,37 +131,38 @@ def _prepare_matches(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def load_matches() -> tuple[pd.DataFrame | None, str | None, str | None]:
+def load_matches() -> tuple[pd.DataFrame | None, str | None, str | None, str | None]:
     """Load matches from PostgreSQL with CSV fallback."""
     postgres_error: str | None = None
 
     try:
         df = _read_matches_from_postgres()
-        return _prepare_matches(df), "PostgreSQL table: matches", None
+        return _prepare_matches(df), "PostgreSQL table: matches", None, None
     except Exception as error:  # pragma: no cover - UI fallback branch
         postgres_error = error.__class__.__name__
 
     try:
         df = _read_matches_from_csv()
-        message = (
-            "PostgreSQL was unavailable, so the dashboard loaded the standardized "
-            "CSV fallback."
+        info_message = "Running with the standardized CSV fallback dataset."
+        details_message = (
+            "PostgreSQL is unavailable in the current environment, so the dashboard "
+            "is using the local CSV file instead."
         )
         if postgres_error:
-            message = f"{message} Database error type: {postgres_error}."
-        return df_pipe(_prepare_matches(df), message)
+            details_message = f"{details_message} Database error type: {postgres_error}."
+        return (
+            _prepare_matches(df),
+            "CSV fallback: data/interim/matches_standardized.csv",
+            info_message,
+            details_message,
+        )
     except Exception:
         instructions = (
             "Data is unavailable. First load the `matches` table into PostgreSQL or "
             "prepare `data/interim/matches_standardized.csv` using the project ETL "
             "commands."
         )
-        return None, None, instructions
-
-
-def df_pipe(df: pd.DataFrame, message: str) -> tuple[pd.DataFrame, str, str]:
-    """Return a consistent CSV fallback response payload."""
-    return df, "CSV fallback: data/interim/matches_standardized.csv", message
+        return None, None, None, instructions
 
 
 def get_filter_options(matches_df: pd.DataFrame) -> dict[str, Any]:
