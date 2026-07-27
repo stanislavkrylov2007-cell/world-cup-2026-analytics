@@ -7,30 +7,60 @@ from io import StringIO
 import pandas as pd
 import streamlit as st
 
-from dashboard.charts import (
-    matches_by_year_chart,
-    metric_trend_chart,
-    outcome_distribution_chart,
-    team_results_stacked_chart,
-    top_opponents_chart,
-    top_teams_chart,
-    top_tournaments_chart,
-    tournament_yearly_chart,
-    venue_comparison_chart,
-)
-from dashboard.data import (
-    apply_global_filters,
-    apply_match_explorer_filters,
-    biggest_wins,
-    build_team_long,
-    get_filter_options,
-    latest_team_matches,
-    load_matches,
-    summarize_team,
-    top_team_opponents,
-    tournament_team_summary,
-    yearly_team_results,
-)
+try:
+    from dashboard.charts import (
+        goals_histogram_chart,
+        matches_by_year_chart,
+        metric_trend_chart,
+        outcome_distribution_chart,
+        team_results_stacked_chart,
+        top_countries_chart,
+        top_opponents_chart,
+        top_teams_chart,
+        top_tournaments_chart,
+        tournament_yearly_chart,
+        venue_comparison_chart,
+    )
+    from dashboard.data import (
+        apply_global_filters,
+        apply_match_explorer_filters,
+        biggest_wins,
+        build_team_long,
+        get_filter_options,
+        latest_team_matches,
+        load_matches,
+        summarize_team,
+        top_team_opponents,
+        tournament_team_summary,
+        yearly_team_results,
+    )
+except ModuleNotFoundError:
+    from charts import (
+        goals_histogram_chart,
+        matches_by_year_chart,
+        metric_trend_chart,
+        outcome_distribution_chart,
+        team_results_stacked_chart,
+        top_countries_chart,
+        top_opponents_chart,
+        top_teams_chart,
+        top_tournaments_chart,
+        tournament_yearly_chart,
+        venue_comparison_chart,
+    )
+    from data import (
+        apply_global_filters,
+        apply_match_explorer_filters,
+        biggest_wins,
+        build_team_long,
+        get_filter_options,
+        latest_team_matches,
+        load_matches,
+        summarize_team,
+        top_team_opponents,
+        tournament_team_summary,
+        yearly_team_results,
+    )
 
 st.set_page_config(
     page_title="World Cup 2026 Analytics",
@@ -213,16 +243,22 @@ st.caption(
     "Data source priority: PostgreSQL table `matches` -> standardized CSV fallback."
 )
 
-matches_df, data_source, load_message = load_matches()
+matches_df, data_source, info_message, details_message = load_matches()
 
 if matches_df is None:
-    st.error(load_message or "No data source is available.")
+    st.error(details_message or "No data source is available.")
     st.stop()
 
-if load_message:
-    st.warning(load_message)
+if info_message:
+    st.caption(info_message)
 
-st.success(f"Loaded data source: {data_source}")
+st.success(f"Data source: {data_source}")
+
+with st.expander("Data source details", expanded=False):
+    if details_message:
+        st.info(details_message)
+    else:
+        st.write("PostgreSQL connection is available and the dashboard is using the `matches` table.")
 
 filter_options = get_filter_options(matches_df)
 default_year_range = (
