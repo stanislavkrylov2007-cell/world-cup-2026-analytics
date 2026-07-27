@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local environment
+.env
+config/column_mapping.toml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Data artifacts
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Reports
+reports/figures/*
+!reports/figures/.gitkeep
+reports/data_profiles/*
+!reports/data_profiles/.gitkeep
+reports/transformations/*
+!reports/transformations/.gitkeep
+
+# Local work artifacts
+work/
+outputs/

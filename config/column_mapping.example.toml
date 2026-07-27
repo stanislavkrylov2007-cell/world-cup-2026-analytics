@@ -1,0 +1,17 @@
+# Example mapping file for World Cup 2026 Analytics.
+# The keys on the left are the internal project field names.
+# The values on the right are the column names from the source CSV.
+# Optional fields may be omitted if the source dataset does not contain them.
+# Review every value manually before creating your own column_mapping.toml.
+# This example does not describe any specific real dataset.
+
+[source_columns]
+date = "date"
+home_team = "home_team"
+away_team = "away_team"
+home_score = "home_score"
+away_score = "away_score"
+tournament = "tournament"
+city = "city"
+country = "country"
+neutral = "neutral"
