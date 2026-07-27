@@ -58,3 +58,5 @@ reports/transformations/*
 # Local work artifacts
 work/
 outputs/
+
+!data/interim/matches_standardized.csv
