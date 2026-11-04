@@ -1,0 +1,71 @@
+name: redash-local
+
+x-redash: &redash
+  image: redash/redash:26.9.0
+  env_file: .env
+  volumes:
+    - ./bootstrap:/bootstrap:ro
+  restart: unless-stopped
+  depends_on:
+    metadata:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  server:
+    <<: *redash
+    command: server
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      REDASH_WEB_WORKERS: "2"
+
+  scheduler:
+    <<: *redash
+    command: scheduler
+
+  worker:
+    <<: *redash
+    command: worker
+    environment:
+      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default"
+      WORKERS_COUNT: "2"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  metadata:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - redash_metadata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redash -d redash"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  analytics:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: world_cup_analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ANALYTICS_ADMIN_PASSWORD:?Missing analytics password}
+      ANALYTICS_READER_PASSWORD: ${ANALYTICS_READER_PASSWORD:?Missing reader password}
+    volumes:
+      - analytics_data:/var/lib/postgresql/data
+      - ./bootstrap:/bootstrap:ro
+      - ./bootstrap/analytics-init.sh:/docker-entrypoint-initdb.d/10-analytics.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d world_cup_analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  analytics_data:
+  redash_metadata:

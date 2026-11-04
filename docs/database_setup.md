@@ -91,7 +91,7 @@ wca-load-postgres data/interim/matches_standardized.csv --replace
 psql -d world_cup_analytics -f sql/ddl/002_create_bi_marts.sql
 ```
 
-Скрипт можно выполнять повторно. `bi_match_facts` содержит одну строку на матч, `bi_team_year` — одну строку на команду и год с `DENSE_RANK`, `bi_year_trends` — одну строку на год с накопительным числом матчей. Streamlit читает `bi_match_facts`; если витрины ещё не созданы, читает исходную таблицу.
+Скрипт можно выполнять повторно. `bi_match_facts` содержит одну строку на матч, `bi_team_year` — одну строку на команду и год с `DENSE_RANK`, `bi_year_trends` — одну строку на год с накопительным числом матчей. Redash читает эти витрины через отдельного пользователя с правами чтения.
 
 Примеры запуска запросов через `psql`:
 

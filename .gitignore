@@ -20,8 +20,6 @@ config/column_mapping.toml
 # Jupyter
 .ipynb_checkpoints/
 
-# Streamlit
-.streamlit/secrets.toml
 
 # OS / editors
 .DS_Store
