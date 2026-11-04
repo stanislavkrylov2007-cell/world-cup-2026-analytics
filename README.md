@@ -1,6 +1,6 @@
 # World Cup 2026 Analytics
 
-Historical international football analytics with a reproducible CSV → Python ETL → PostgreSQL → SQL views → Redash workflow.
+Аналитика исторических результатов международных футбольных матчей: воспроизводимый процесс от CSV и Python ETL до PostgreSQL, SQL-витрин и дашборда Redash.
 
 ## Посмотреть результат без установки
 
@@ -29,53 +29,53 @@ Historical international football analytics with a reproducible CSV → Python E
 
 Далее приведены данные и инструкция самостоятельного запуска. Публичный сервер не развёрнут; адрес localhost открывается только после локального запуска. Видео демонстрации пока не записано.
 
-## Dataset
+## Данные
 
-49,520 international men's matches, from 1872-11-30 through 2026-07-19; 337 teams and 201 tournaments.
-Original source: [martj42/international_results](https://github.com/martj42/international_results).
-The prepared snapshot is `data/interim/matches_standardized.csv`.
+49 520 матчей мужских национальных сборных за период с 30 ноября 1872 года по 19 июля 2026 года: 337 команд и 201 турнир.
+Исходный источник: [martj42/international_results](https://github.com/martj42/international_results).
+Подготовленный набор данных находится в `data/interim/matches_standardized.csv`.
 
-## Run Redash on Windows
+## Запуск Redash на Windows
 
-Start Docker Desktop (Linux containers), then run in PowerShell:
+Запустите Docker Desktop в режиме Linux-контейнеров. В папке проекта выполните в PowerShell:
 
 ```powershell
 & .\deploy\redash\start-redash.cmd
 ```
 
-On a new installation, complete the administrator form at http://localhost:5000/setup and run the script again.
-On subsequent runs, the existing account, queries and database volumes are reused.
-The script downloads pinned Redash 26.9.0, PostgreSQL 17 and Redis 7 images, loads the snapshot,
-creates the SQL views and read-only data source, executes six SQL queries, and creates the dashboard.
-The web service is available only at http://localhost:5000.
+При первом запуске создайте учётную запись администратора на http://localhost:5000/setup и запустите скрипт повторно.
+При следующих запусках сохраняются созданная учётная запись, запросы и данные в томах Docker.
+Скрипт скачивает образы Redash 26.9.0, PostgreSQL 17 и Redis 7, загружает подготовленные данные,
+создаёт SQL-витрины и источник данных с правами чтения, выполняет шесть SQL-запросов и создаёт дашборд.
+Интерфейс доступен локально по адресу http://localhost:5000.
 
-The local configuration is generated in `deploy/redash/.env`. Keep it out of Git.
-Redash metadata and the analytics dataset use separate PostgreSQL services and persistent Docker volumes.
-The analytics service is named `analytics`; Redash connects to it with `redash_reader`, who has SELECT permissions.
+Локальная конфигурация создаётся в `deploy/redash/.env`. Этот файл с секретами исключён из Git.
+Настройки Redash и аналитические данные хранятся в отдельных сервисах PostgreSQL и постоянных томах Docker.
+Сервис с аналитическими данными называется `analytics`. Redash подключается к нему от имени `redash_reader`, которому разрешено только чтение через SELECT.
 
-## Dashboard
+## Дашборд
 
-- Dataset overview and date coverage.
-- Match counts and goals per year.
-- Top teams by wins, with a minimum of 100 matches.
-- Tournament volumes.
-- Home, draw and away win shares on neutral versus non-neutral fields.
+- Обзор набора данных и охват по датам.
+- Количество матчей и среднее число голов по годам.
+- Рейтинг команд по числу побед среди сборных, сыгравших не менее 100 матчей.
+- Количество матчей по турнирам.
+- Доли побед хозяев, ничьих и побед гостей на нейтральных и ненейтральных полях.
 
-These metrics describe historical associations; they do not establish a causal effect of venue.
-Friendlies dominate the sample, so aggregated rankings are not rankings of current team strength.
+Метрики описывают исторические зависимости и не доказывают причинный эффект места проведения матча.
+В выборке преобладают товарищеские матчи. Сводные исторические рейтинги не отражают текущую силу команд.
 
-## Data model
+## Модель данных
 
-- `matches`: validated match records and source metadata.
-- `bi_match_facts`: one row per match, result and goals.
-- `bi_team_year`: one row per team and year, wins/draws/losses, goals, win rate, DENSE_RANK.
-- `bi_year_trends`: one row per year, match volume, goals, draw rate and cumulative matches.
+- `matches`: проверенные записи матчей и метаданные об источнике.
+- `bi_match_facts`: одна строка на матч, результат и количество голов.
+- `bi_team_year`: одна строка на команду и год; победы, ничьи, поражения, голы, доля побед и рейтинг DENSE_RANK.
+- `bi_year_trends`: одна строка на год; количество матчей, голы, доля ничьих и накопительное число матчей.
 
-Team statistics count one observation for each team participating in a match.
-Home advantage excludes unknown venue status; neutral and non-neutral samples are shown separately.
-The source CSV is loaded once when the analytics volume is created. Later changes to CSV files are not automatically imported.
+В статистике команд каждый матч учитывается по одному разу для каждой участвующей сборной.
+При сравнении результатов по типу поля исключаются матчи с неизвестным статусом поля; нейтральные и ненейтральные поля рассматриваются отдельно.
+Исходный CSV загружается один раз при создании тома с аналитическими данными. Последующие изменения CSV автоматически не импортируются.
 
-## Python ETL and research
+## Подготовка данных на Python и исследовательский анализ
 
 ```powershell
 python -m venv .venv
@@ -86,26 +86,26 @@ wca-profile-data data/raw/results.csv
 wca-transform-data data/raw/results.csv --mapping config/column_mapping.toml --output data/interim/matches_standardized.csv
 ```
 
-For an existing PostgreSQL installation, fill `.env` using `.env.example` and run:
+Чтобы использовать уже установленный PostgreSQL, заполните `.env` по образцу `.env.example` и выполните:
 
 ```powershell
 wca-load-postgres data/interim/matches_standardized.csv
 psql -d world_cup_analytics -f sql/ddl/002_create_bi_marts.sql
 ```
 
-Exploratory analysis remains in `notebooks/world_cup_analysis.ipynb`; SQL investigations are in `sql/analysis`.
+Исследовательский анализ находится в `notebooks/world_cup_analysis.ipynb`, аналитические SQL-запросы — в `sql/analysis`.
 
-## Validation
+## Проверки
 
 ```powershell
 python -m pytest -q
 docker compose -f deploy/redash/compose.yaml config --quiet
 ```
 
-The startup workflow checks the 49,520-row snapshot and executes every dashboard query through the Redash worker.
-`tests/bi_marts_assertions.sql` checks view grain, win rates, tied ranks, unknown venue status and cumulative matches in a disposable PostgreSQL database.
+При запуске проверяется наличие 49 520 записей и выполняются все запросы дашборда через обработчик Redash.
+`tests/bi_marts_assertions.sql` проверяет детализацию витрин, долю побед, одинаковые места в рейтинге, обработку неизвестного статуса поля и накопительное число матчей. SQL-проверки запускаются в отдельной тестовой базе PostgreSQL.
 
-## Troubleshooting and shutdown
+## Диагностика и остановка
 
 ```powershell
 docker compose -f deploy/redash/compose.yaml ps
@@ -113,5 +113,5 @@ docker compose -f deploy/redash/compose.yaml logs --tail 80 server worker analyt
 docker compose -f deploy/redash/compose.yaml stop
 ```
 
-If Docker Hub downloads report a refused connection to a local proxy, check Docker Desktop's proxy settings and the VPN/proxy application.
-Stopping containers preserves data. Do not remove volumes unless you intend to erase that deployment's stored data.
+Если при скачивании из Docker Hub возникает отказ в подключении к локальному прокси, проверьте настройки прокси в Docker Desktop и состояние приложения VPN или прокси.
+Остановка контейнеров сохраняет данные. Удаление томов удалит сохранённые данные этого развёртывания.
