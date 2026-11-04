@@ -30,6 +30,7 @@ try:
         latest_team_matches,
         load_matches,
         summarize_team,
+        summarize_slice,
         top_team_opponents,
         tournament_team_summary,
         yearly_team_results,
@@ -57,6 +58,7 @@ except ModuleNotFoundError:
         latest_team_matches,
         load_matches,
         summarize_team,
+        summarize_slice,
         top_team_opponents,
         tournament_team_summary,
         yearly_team_results,
@@ -258,7 +260,7 @@ with st.expander("Data source details", expanded=False):
     if details_message:
         st.info(details_message)
     else:
-        st.write("PostgreSQL connection is available and the dashboard is using the `matches` table.")
+        st.write(f"Connected source: {data_source}")
 
 filter_options = get_filter_options(matches_df)
 default_year_range = (
@@ -349,6 +351,13 @@ with tabs[0]:
     )
     col6.metric("Average goals", format_float(avg_goals, 2))
 
+    slice_kpis = summarize_slice(filtered_df)
+    rate_cols = st.columns(3)
+    rate_cols[0].metric("Selected share of dataset", f"{len(filtered_df) / len(matches_df) * 100:.1f}%")
+    rate_cols[1].metric("Draw share", f"{slice_kpis['draw_share_pct']:.1f}%" if slice_kpis['draw_share_pct'] is not None else "N/A")
+    rate_cols[2].metric("Home win share (non-neutral)", f"{slice_kpis['home_win_pct']:.1f}%" if slice_kpis['home_win_pct'] is not None else "N/A")
+    st.caption(f"Draw share: {slice_kpis['scored_matches']:,} scored matches. Home win share: {slice_kpis['hosted_matches']:,} scored non-neutral matches; unknown venues excluded.")
+
     chart_col1, chart_col2 = st.columns(2)
     with chart_col1:
         matches_yearly_df = (
@@ -429,6 +438,13 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Teams")
+
+    min_matches = st.number_input("Minimum matches in ranking", min_value=1, value=10, step=1)
+    eligible_teams = team_ranking_df.loc[team_ranking_df["matches"] >= min_matches].copy()
+    eligible_teams = eligible_teams.sort_values(["win_rate", "matches", "team"], ascending=[False, False, True])
+    st.caption("Win rate = wins / matches in the current filters. Minimum sample size applies to this ranking.")
+    st.dataframe(eligible_teams, hide_index=True, use_container_width=True)
+    st.download_button("Download team ranking", eligible_teams.to_csv(index=False), "team_ranking.csv", "text/csv")
 
     selected_team = st.selectbox(
         "Select team",

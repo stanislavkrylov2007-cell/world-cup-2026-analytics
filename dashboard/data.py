@@ -56,9 +56,10 @@ def _build_database_url() -> str | None:
     )
 
 
-def _read_matches_from_postgres() -> pd.DataFrame:
+def _read_matches_from_postgres() -> tuple[pd.DataFrame, str]:
     """Load matches from PostgreSQL."""
     from sqlalchemy import create_engine, text
+    from sqlalchemy.exc import ProgrammingError
 
     database_url = _build_database_url()
     if database_url is None:
@@ -67,7 +68,7 @@ def _read_matches_from_postgres() -> pd.DataFrame:
     query = text(
         """
         SELECT
-            match_date AS date,
+            date,
             home_team,
             away_team,
             home_score,
@@ -76,14 +77,29 @@ def _read_matches_from_postgres() -> pd.DataFrame:
             city,
             country,
             neutral
-        FROM matches
-        ORDER BY match_date
+        FROM bi_match_facts
+        ORDER BY date
         """
     )
 
     engine = create_engine(database_url)
-    with engine.connect() as connection:
-        return pd.read_sql(query, connection)
+    try:
+        with engine.connect() as connection:
+            try:
+                return pd.read_sql(query, connection), "PostgreSQL view: bi_match_facts"
+            except ProgrammingError as error:
+                if getattr(error.orig, "sqlstate", None) != "42P01":
+                    raise
+                connection.rollback()
+                # Existing installations can run before the views are applied.
+                legacy_query = text(
+                    "SELECT match_date AS date, home_team, away_team, home_score, "
+                    "away_score, tournament, city, country, neutral "
+                    "FROM matches ORDER BY match_date"
+                )
+                return pd.read_sql(legacy_query, connection), "PostgreSQL table: matches"
+    finally:
+        engine.dispose()
 
 
 def _read_matches_from_csv() -> pd.DataFrame:
@@ -136,8 +152,8 @@ def load_matches() -> tuple[pd.DataFrame | None, str | None, str | None, str | N
     postgres_error: str | None = None
 
     try:
-        df = _read_matches_from_postgres()
-        return _prepare_matches(df), "PostgreSQL table: matches", None, None
+        df, source = _read_matches_from_postgres()
+        return _prepare_matches(df), source, None, None
     except Exception as error:  # pragma: no cover - UI fallback branch
         postgres_error = error.__class__.__name__
 
@@ -186,6 +202,20 @@ def get_filter_options(matches_df: pd.DataFrame) -> dict[str, Any]:
         "countries": countries.tolist(),
         "year_min": year_min,
         "year_max": year_max,
+    }
+
+
+def summarize_slice(matches_df: pd.DataFrame) -> dict[str, float | int | None]:
+    """Rates use scored matches; hosting rate also requires known non-neutral venue."""
+    scored = matches_df.dropna(subset=["home_score", "away_score"])
+    hosted = scored.loc[scored["neutral"].eq(False).fillna(False)]
+    return {
+        "scored_matches": len(scored),
+        "hosted_matches": len(hosted),
+        "draw_share_pct": float(scored["home_score"].eq(scored["away_score"]).mean() * 100)
+        if len(scored) else None,
+        "home_win_pct": float(hosted["home_score"].gt(hosted["away_score"]).mean() * 100)
+        if len(hosted) else None,
     }
 
 
@@ -405,8 +435,8 @@ def apply_match_explorer_filters(
     if team_search.strip():
         needle = team_search.strip().casefold()
         filtered_df = filtered_df.loc[
-            filtered_df["home_team"].str.casefold().str.contains(needle, na=False)
-            | filtered_df["away_team"].str.casefold().str.contains(needle, na=False)
+            filtered_df["home_team"].str.casefold().str.contains(needle, na=False, regex=False)
+            | filtered_df["away_team"].str.casefold().str.contains(needle, na=False, regex=False)
         ]
 
     filtered_df = filtered_df.loc[filtered_df["total_goals"] >= min_total_goals]

@@ -14,6 +14,7 @@ World Cup 2026 Analytics is a portfolio project about historical international f
 - Python EDA
 - Jupyter Notebook
 - Streamlit Dashboard
+- PostgreSQL BI views with CTEs, filtered aggregates, and window functions
 
 ---
 
@@ -27,7 +28,7 @@ World Cup 2026 Analytics is a portfolio project about historical international f
 - Tournaments: `201`
 - Host countries: `269`
 
-The analytical layer first tries to read data from the PostgreSQL table `matches`. If PostgreSQL is unavailable, the notebook and dashboard fall back to `data/interim/matches_standardized.csv`.
+The dashboard reads the PostgreSQL view `bi_match_facts` when available. Older databases without views still use `matches`; when PostgreSQL is unavailable it falls back to `data/interim/matches_standardized.csv`.
 
 ---
 
@@ -150,6 +151,21 @@ wca-transform-data data/raw/results.csv --mapping config/column_mapping.toml --o
 wca-load-postgres data/interim/matches_standardized.csv
 ```
 
+8. Create or refresh the BI views (local PostgreSQL, no Docker required).
+
+```bash
+psql -d world_cup_analytics -f sql/ddl/002_create_bi_marts.sql
+```
+
+The flow is `raw CSV → validation and transformation → matches (PostgreSQL) → BI views → Streamlit`. The views are ordinary, re-runnable PostgreSQL views, so they reflect subsequent loads without a refresh command. `bi_match_facts` has one row per match; `bi_team_year` has one row per team and year; `bi_year_trends` has one row per year. The team view counts each match once for each participating team. Its `win_rate_pct` denominator is that team's matches in the year. The home-win rate in `bi_year_trends` excludes neutral matches and rows with unknown venue status.
+
+Inspect the marts:
+
+```sql
+SELECT * FROM bi_team_year WHERE year = 2024 ORDER BY year_rank, team LIMIT 10;
+SELECT * FROM bi_year_trends ORDER BY year DESC LIMIT 10;
+```
+
 ---
 
 ## Usage
@@ -193,7 +209,18 @@ Dashboard tabs:
 - `Home Advantage`: non-neutral versus neutral comparisons
 - `Match Explorer`: filtered match table with CSV export
 
-The notebook and dashboard try PostgreSQL first and then fall back to `data/interim/matches_standardized.csv` if the database is unavailable.
+The notebook tries PostgreSQL first and falls back to the CSV. The dashboard tries `bi_match_facts`, then the existing `matches` table, then the CSV. Its global year, tournament, team, country, and venue filters apply to all dashboard tabs.
+
+The Overview reports selected dataset share, draw share, and home-win share for scored non-neutral matches with explicit sample sizes. The Teams tab includes a minimum-match threshold and CSV export for the ranking.
+
+## Verification
+
+```bash
+python -m pytest -q
+psql -d disposable_test_database -v ON_ERROR_STOP=1 -f tests/bi_marts_assertions.sql
+```
+
+The SQL check creates a test schema inside a transaction and rolls it back. It checks view re-creation, match and team grain, team win rate, tied ranking positions, unknown venue handling, and cumulative match counts. Use a disposable database with permission to create schemas.
 
 ---
 
